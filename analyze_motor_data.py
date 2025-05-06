@@ -39,7 +39,7 @@ def analyze_motor_data(data_path=None, data_df=None, max_data_points=1000):
         elif data_path is not None:
             df = pd.read_csv(data_path)
         else:
-            df = pd.read_csv('measures_v2_with_time.csv')
+            df = pd.read_csv('sample_data/sampled_data_100000.csv')
     except Exception as e:
         return {
             "status": "error",

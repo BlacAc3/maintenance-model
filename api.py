@@ -1,9 +1,20 @@
 from flask import Flask, request, jsonify, send_from_directory
 import os
+import numpy as np
 import pandas as pd
 from analyze_motor_data import analyze_motor_data
 import json
 from datetime import datetime
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, np.integer):
+            return int(o)
+        if isinstance(o, np.floating):
+            return float(o)
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        return super().default(o)
 
 app = Flask(__name__, static_folder='.')
 
@@ -29,6 +40,7 @@ def latest_analysis():
 
     # Get the most recent file
     latest_file = max(analysis_files, key=lambda x: os.path.getmtime(x))
+    print(latest_file)
 
     with open(latest_file, 'r') as f:
         data = json.load(f)
@@ -59,21 +71,25 @@ def analyze():
         df = pd.read_csv(temp_file_path)
 
         # Analyze the data
-        result = analyze_motor_data(data_df=df)
+        results = analyze_motor_data(data_path=temp_file_path)
 
         # Save the analysis result
-        output_file = f"motor_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(output_file, 'w') as f:
-            json.dump(result, f, indent=2)
 
-        # Also save as latest
-        with open('motor_analysis_latest.json', 'w') as f:
-            json.dump(result, f, indent=2)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Use the custom encoder when dumping the results
+        latest_file = 'motor_analysis_latest.json'
+        # Also save a timestamped version
+        timestamped_file = f'results/motor_analysis_{timestamp}.json'
+
+        # Write both files
+        for filename in [latest_file, timestamped_file]:
+            with open(filename, 'w') as f:
+                json.dump(results, f, indent=2, cls=NumpyEncoder)
 
         # Clean up the temp file
         os.remove(temp_file_path)
 
-        return jsonify(result)
+        return latest_analysis()
 
     except Exception as e:
         # Clean up the temp file
