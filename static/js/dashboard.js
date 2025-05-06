@@ -78,27 +78,27 @@ function uploadAndAnalyzeData(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  // In a real application, you would send this to a server endpoint
-  // For this demo, we'll simulate the analysis with a timeout
-  setTimeout(() => {
-    fetch("motor_analysis_latest.json")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Analysis failed. Please try again.");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        motorData = data;
-        updateDashboard(data);
-        statusElement.innerHTML =
-          '<div class="alert alert-success">Analysis completed successfully</div>';
-      })
-      .catch((error) => {
-        console.error("Error analyzing data:", error);
-        statusElement.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
-      });
-  }, 2000);
+  // Send the data to the server endpoint for analysis
+  fetch("/api/analyze", {
+    method: "POST",
+    body: formData,
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Analysis failed. Please try again.");
+      }
+      return response.json();
+    })
+    .then((data) => {
+      motorData = data;
+      updateDashboard(data);
+      statusElement.innerHTML =
+        '<div class="alert alert-success">Analysis completed successfully</div>';
+    })
+    .catch((error) => {
+      console.error("Error analyzing data:", error);
+      statusElement.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    });
 }
 
 // Update the dashboard with new data
