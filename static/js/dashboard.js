@@ -23,9 +23,9 @@ document.addEventListener("DOMContentLoaded", function () {
   fetchMotorData();
 
   // Set up file upload and analysis
-  const analyzeButton = document.getElementById("analyzeButton");
-  if (analyzeButton) {
-    analyzeButton.addEventListener("click", function () {
+  document
+    .getElementById("analyzeButton")
+    .addEventListener("click", function () {
       const fileInput = document.getElementById("dataFileInput");
       if (fileInput.files.length > 0) {
         uploadAndAnalyzeData(fileInput.files[0]);
@@ -34,7 +34,6 @@ document.addEventListener("DOMContentLoaded", function () {
           '<div class="alert alert-warning">Please select a file first</div>';
       }
     });
-  }
 
   // Update last updated time
   updateLastUpdated();
@@ -64,18 +63,14 @@ function fetchMotorData() {
     })
     .catch((error) => {
       console.error("Error fetching data:", error);
-      const statusText = document.getElementById("statusText");
-      const statusIndicator = document.getElementById("statusIndicator");
-      if (statusText) statusText.textContent = "No Data";
-      if (statusIndicator) statusIndicator.className = "status-indicator";
+      document.getElementById("statusText").textContent = "No Data";
+      document.getElementById("statusIndicator").className = "status-indicator";
     });
 }
 
 // Upload and analyze a data file
 function uploadAndAnalyzeData(file) {
   const statusElement = document.getElementById("uploadStatus");
-  if (!statusElement) return;
-
   statusElement.innerHTML =
     '<div class="alert alert-info">Analyzing data, please wait...</div>';
 
@@ -83,40 +78,35 @@ function uploadAndAnalyzeData(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  // Send data to the server API endpoint
-  fetch("/api/analyze", {
-    method: "POST",
-    body: formData,
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error("Analysis failed. Please try again.");
-      }
-      return response.json();
-    })
-    .then((data) => {
-      if (data.status === "error") {
-        throw new Error(data.message || "Unknown error occurred");
-      }
-      motorData = data;
-      updateDashboard(data);
-      statusElement.innerHTML =
-        '<div class="alert alert-success">Analysis completed successfully</div>';
-    })
-    .catch((error) => {
-      console.error("Error analyzing data:", error);
-      statusElement.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
-    });
+  // In a real application, you would send this to a server endpoint
+  // For this demo, we'll simulate the analysis with a timeout
+  setTimeout(() => {
+    fetch("motor_analysis_latest.json")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Analysis failed. Please try again.");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        motorData = data;
+        updateDashboard(data);
+        statusElement.innerHTML =
+          '<div class="alert alert-success">Analysis completed successfully</div>';
+      })
+      .catch((error) => {
+        console.error("Error analyzing data:", error);
+        statusElement.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+      });
+  }, 2000);
 }
 
 // Update the dashboard with new data
 function updateDashboard(data) {
-  if (!data || data.status !== "success") {
-    const statusText = document.getElementById("statusText");
-    const statusIndicator = document.getElementById("statusIndicator");
-    if (statusText) statusText.textContent = "Error";
-    if (statusIndicator)
-      statusIndicator.className = "status-indicator status-critical";
+  if (data.status !== "success") {
+    document.getElementById("statusText").textContent = "Error";
+    document.getElementById("statusIndicator").className =
+      "status-indicator status-critical";
     return;
   }
 
@@ -124,51 +114,28 @@ function updateDashboard(data) {
   updateSystemStatus(data);
 
   // Update anomaly detection metrics
-  if (data.anomaly_summary) {
-    updateAnomalyMetrics(data.anomaly_summary);
-  }
+  updateAnomalyMetrics(data.anomaly_summary);
 
   // Update temperature analysis
-  if (data.temperature_analysis) {
-    updateTemperatureAnalysis(data.temperature_analysis);
-  }
-
-  // Update charts
-  if (data.plot_data) {
-    updateAnomalyChart(data.plot_data);
-    if (data.temperature_series) {
-      updateTemperatureChart(data.temperature_series, data.plot_data.time);
-    }
-  }
+  updateTemperatureAnalysis(data.temperature_analysis);
 
   // Update parameter anomalies
-  if (data.anomaly_summary && data.anomaly_summary.parameter_anomalies) {
-    updateParameterAnomalies(data.anomaly_summary.parameter_anomalies);
-  }
+  updateParameterAnomalies(data.anomaly_summary.parameter_anomalies);
 
   // Update sample anomalies
-  if (data.sample_anomalies) {
-    updateSampleAnomalies(data.sample_anomalies);
-  }
+  updateSampleAnomalies(data.sample_anomalies);
 
   // Update parameter stats
-  if (data.column_stats) {
-    updateParameterStats(data.column_stats);
-  }
+  updateParameterStats(data.column_stats);
 
   // Update timestamp
-  const timestampElement = document.getElementById("analysisTimestamp");
-  if (timestampElement && data.timestamp) {
-    timestampElement.textContent = data.timestamp;
-  }
+  document.getElementById("analysisTimestamp").textContent = data.timestamp;
 }
 
 // Update system status indicators
 function updateSystemStatus(data) {
   const statusIndicator = document.getElementById("statusIndicator");
   const statusText = document.getElementById("statusText");
-
-  if (!statusIndicator || !statusText || !data.anomaly_summary) return;
 
   const anomalyPercentage = data.anomaly_summary.anomaly_percentage;
 
@@ -186,21 +153,15 @@ function updateSystemStatus(data) {
 
 // Update anomaly metrics
 function updateAnomalyMetrics(summary) {
-  const totalRecords = document.getElementById("totalRecords");
-  const anomalyCount = document.getElementById("anomalyCount");
-  const anomalyPercentage = document.getElementById("anomalyPercentage");
-
-  if (totalRecords) totalRecords.textContent = summary.total_records;
-  if (anomalyCount) anomalyCount.textContent = summary.anomaly_count;
-  if (anomalyPercentage)
-    anomalyPercentage.textContent = summary.anomaly_percentage.toFixed(2);
+  document.getElementById("totalRecords").textContent = summary.total_records;
+  document.getElementById("anomalyCount").textContent = summary.anomaly_count;
+  document.getElementById("anomalyPercentage").textContent =
+    summary.anomaly_percentage.toFixed(2);
 }
 
 // Update temperature analysis cards
 function updateTemperatureAnalysis(tempData) {
   const container = document.getElementById("temperatureCards");
-  if (!container) return;
-
   container.innerHTML = "";
 
   if (!tempData || Object.keys(tempData).length === 0) {
@@ -239,10 +200,188 @@ function updateTemperatureAnalysis(tempData) {
   container.appendChild(row);
 }
 
+// Update anomaly chart
+function updateAnomalyChart(plotData) {
+  const ctx = document.getElementById("anomalyChart").getContext("2d");
+
+  if (anomalyChart) {
+    anomalyChart.destroy();
+  }
+
+  // Prepare data for normal vs anomaly points
+  const normalIndices = [];
+  const normalErrors = [];
+  const anomalyIndices = [];
+  const anomalyErrors = [];
+
+  for (let i = 0; i < plotData.errors.length; i++) {
+    if (plotData.anomaly_indices.includes(i)) {
+      anomalyIndices.push(plotData.time[i]);
+      anomalyErrors.push(plotData.errors[i]);
+    } else {
+      normalIndices.push(plotData.time[i]);
+      normalErrors.push(plotData.errors[i]);
+    }
+  }
+
+  anomalyChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      datasets: [
+        {
+          label: "Reconstruction Error",
+          data: plotData.errors.map((error, index) => ({
+            x: plotData.time[index],
+            y: error,
+          })),
+          borderColor: "rgba(54, 162, 235, 0.5)",
+          borderWidth: 1,
+          pointRadius: 0,
+          fill: false,
+        },
+        {
+          label: "Anomalies",
+          data: anomalyErrors.map((error, index) => ({
+            x: anomalyIndices[index],
+            y: error,
+          })),
+          backgroundColor: "rgba(255, 99, 132, 1)",
+          borderColor: "rgba(255, 99, 132, 1)",
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          showLine: false,
+        },
+        {
+          label: "Threshold",
+          data: plotData.time.map((time) => ({
+            x: time,
+            y: plotData.threshold,
+          })),
+          borderColor: "rgba(255, 99, 132, 0.7)",
+          borderWidth: 2,
+          borderDash: [5, 5],
+          pointRadius: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: "linear",
+          position: "bottom",
+          title: {
+            display: true,
+            text: "Time",
+          },
+        },
+        y: {
+          title: {
+            display: true,
+            text: "Reconstruction Error",
+          },
+          beginAtZero: true,
+        },
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: "Motor Anomaly Detection Results",
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              let label = context.dataset.label || "";
+              if (label) {
+                label += ": ";
+              }
+              label += context.parsed.y.toFixed(4);
+              return label;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+// Update temperature chart
+function updateTemperatureChart(tempSeries, timeData) {
+  const ctx = document.getElementById("temperatureChart").getContext("2d");
+
+  if (temperatureChart) {
+    temperatureChart.destroy();
+  }
+
+  if (!tempSeries || Object.keys(tempSeries).length === 0) {
+    return;
+  }
+
+  // Prepare datasets
+  const datasets = [];
+  let colorIndex = 0;
+
+  for (const [sensor, values] of Object.entries(tempSeries)) {
+    datasets.push({
+      label: formatSensorName(sensor),
+      data: values.map((value, index) => ({ x: timeData[index], y: value })),
+      borderColor: colorPalette[colorIndex % colorPalette.length],
+      backgroundColor: colorPalette[colorIndex % colorPalette.length] + "20", // Add transparency
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.3,
+    });
+    colorIndex++;
+  }
+
+  temperatureChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      datasets: datasets,
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: "linear",
+          position: "bottom",
+          title: {
+            display: true,
+            text: "Time",
+          },
+        },
+        y: {
+          title: {
+            display: true,
+            text: "Temperature (°)",
+          },
+        },
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: "Temperature Trends",
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+        },
+      },
+      interaction: {
+        mode: "nearest",
+        axis: "x",
+        intersect: false,
+      },
+    },
+  });
+}
+
 // Update parameter anomalies section
 function updateParameterAnomalies(paramAnomalies) {
   const container = document.getElementById("parameterAnomalies");
-  if (!container) return;
 
   if (!paramAnomalies || Object.keys(paramAnomalies).length === 0) {
     container.innerHTML = "<p>No parameter anomalies detected</p>";
@@ -270,9 +409,8 @@ function updateParameterAnomalies(paramAnomalies) {
 // Update sample anomalies table
 function updateSampleAnomalies(samples) {
   const container = document.getElementById("sampleAnomalies");
-  if (!container) return;
 
-  if (!samples || !Array.isArray(samples) || samples.length === 0) {
+  if (!samples || samples.length === 0) {
     container.innerHTML = "<p>No anomalies to display</p>";
     return;
   }
@@ -308,7 +446,6 @@ function updateSampleAnomalies(samples) {
 // Update parameter statistics
 function updateParameterStats(columnStats) {
   const container = document.getElementById("parameterStats");
-  if (!container) return;
 
   if (!columnStats || Object.keys(columnStats).length === 0) {
     container.innerHTML = "<p>No parameter statistics available</p>";
@@ -318,8 +455,6 @@ function updateParameterStats(columnStats) {
   container.innerHTML = "";
 
   for (const [column, stats] of Object.entries(columnStats)) {
-    if (!stats || typeof stats !== "object") continue;
-
     const card = document.createElement("div");
     card.className = "parameter-card";
 
@@ -341,15 +476,11 @@ function updateParameterStats(columnStats) {
 
 // Helper to format sensor names for display
 function formatSensorName(name) {
-  if (!name || typeof name !== "string") return "";
   return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
 // Update the "last updated" time
 function updateLastUpdated() {
   const now = new Date();
-  const lastUpdatedElement = document.getElementById("lastUpdated");
-  if (lastUpdatedElement) {
-    lastUpdatedElement.textContent = now.toLocaleTimeString();
-  }
+  document.getElementById("lastUpdated").textContent = now.toLocaleTimeString();
 }
