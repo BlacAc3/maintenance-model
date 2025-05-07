@@ -46,4 +46,4 @@ if __name__ == "__main__":
     unique_id = str(uuid.uuid4())
     output_file = f"sample_data/sampled_data_{unique_id}.csv"
     print(f"Starting script with target of 100,000 rows...")
-    get_random_rows(output_file=output_file, num_rows=400000)
+    get_random_rows(output_file=output_file, num_rows=100000)
