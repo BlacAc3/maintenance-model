@@ -298,9 +298,6 @@ function updateTemperatureAnalysis(tempData) {
                         <span title="Average">Avg: ${stats.mean.toFixed(2)}°</span> |
                         <span title="Range">Range: ${stats.min.toFixed(1)}° - ${stats.max.toFixed(1)}°</span>
                     </p>
-                    <p class="card-text ${statusClass} mt-2">
-                        <small><strong>${stats.anomalies > 0 ? "Anomalies: " + stats.anomalies : "No anomalies"}</strong></small>
-                    </p>
                 </div>
             </div>
         `;
