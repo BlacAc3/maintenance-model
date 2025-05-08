@@ -3,39 +3,59 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Electric Motor Anomaly Dashboard</title>
+        <title>Electric Motor Maintenance Dashboard</title>
         <link
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
             rel="stylesheet"
         />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
+            :root {
+                --primary-color: #3772ff;
+                --secondary-color: #f38375;
+                --success-color: #3ad29f;
+                --warning-color: #fcab64;
+                --danger-color: #f45b69;
+                --neutral-dark: #2d3142;
+                --neutral-light: #f7f9fc;
+            }
             body {
                 font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f8f9fa;
+                background-color: var(--neutral-light);
+                color: var(--neutral-dark);
                 padding-top: 20px;
+                padding-bottom: 40px;
             }
             .dashboard-header {
-                background-color: #343a40;
+                background-color: var(--primary-color);
                 color: white;
-                padding: 15px;
-                border-radius: 5px;
-                margin-bottom: 20px;
+                padding: 1.5rem;
+                border-radius: 10px;
+                margin-bottom: 1.5rem;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             }
             .card {
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-                margin-bottom: 20px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+                margin-bottom: 1.5rem;
                 border: none;
                 border-radius: 10px;
                 overflow: hidden;
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
             }
             .card-header {
-                background-color: #0d6efd;
+                background-color: var(--primary-color);
                 color: white;
-                font-weight: bold;
+                font-weight: 600;
+                padding: 0.8rem 1.2rem;
+                border-bottom: none;
             }
             .temperature-card .card-header {
-                background-color: #dc3545;
+                background-color: var(--secondary-color);
             }
             .status-indicator {
                 width: 20px;
@@ -43,19 +63,30 @@
                 border-radius: 50%;
                 display: inline-block;
                 margin-right: 10px;
+                vertical-align: middle;
             }
             .status-normal {
-                background-color: #198754;
+                background-color: var(--success-color);
+                box-shadow: 0 0 8px var(--success-color);
             }
             .status-warning {
-                background-color: #ffc107;
+                background-color: var(--warning-color);
+                box-shadow: 0 0 8px var(--warning-color);
             }
             .status-critical {
-                background-color: #dc3545;
+                background-color: var(--danger-color);
+                box-shadow: 0 0 8px var(--danger-color);
+                animation: pulse 1.5s infinite;
+            }
+            @keyframes pulse {
+                0% { box-shadow: 0 0 8px var(--danger-color); }
+                50% { box-shadow: 0 0 16px var(--danger-color); }
+                100% { box-shadow: 0 0 8px var(--danger-color); }
             }
             .anomaly-table {
                 max-height: 300px;
                 overflow-y: auto;
+                scrollbar-width: thin;
             }
             .parameter-grid {
                 display: grid;
@@ -63,68 +94,168 @@
                 gap: 15px;
             }
             .parameter-card {
-                background-color: #f8f9fa;
+                background-color: white;
                 border-radius: 8px;
-                padding: 10px;
+                padding: 15px;
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                transition: transform 0.2s;
+            }
+            .parameter-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             }
             .parameter-name {
                 font-weight: bold;
-                margin-bottom: 5px;
+                margin-bottom: 8px;
+                color: var(--primary-color);
             }
             .parameter-value {
-                font-size: 1.2rem;
+                font-size: 1.1rem;
+                margin-bottom: 8px;
             }
             .file-upload-container {
                 border: 2px dashed #ccc;
-                padding: 20px;
+                padding: 25px;
                 text-align: center;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                background-color: #ffffff;
+                border-radius: 10px;
+                margin-bottom: 25px;
+                background-color: white;
+                transition: all 0.3s;
+            }
+            .file-upload-container:hover {
+                border-color: var(--primary-color);
+                background-color: rgba(55, 114, 255, 0.05);
+            }
+            .chart-container {
+                position: relative;
+                height: 300px;
+                width: 100%;
+                margin-bottom: 1rem;
+            }
+            .chart-card {
+                height: 100%;
+            }
+            .btn-primary {
+                background-color: var(--primary-color);
+                border-color: var(--primary-color);
+            }
+            .btn-primary:hover {
+                background-color: #2954d4;
+                border-color: #2954d4;
+            }
+            .loading-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(255, 255, 255, 0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+                visibility: hidden;
+                opacity: 0;
+                transition: visibility 0s, opacity 0.3s;
+            }
+            .loading-overlay.active {
+                visibility: visible;
+                opacity: 1;
+            }
+            .spinner-container {
+                text-align: center;
+                background-color: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            }
+            .spinner-border {
+                width: 3rem;
+                height: 3rem;
+                color: var(--primary-color);
+            }
+            .temp-trend-icon {
+                margin-left: 5px;
+                font-size: 14px;
+            }
+            .trend-up {
+                color: var(--danger-color);
+            }
+            .trend-down {
+                color: var(--success-color);
+            }
+            .trend-stable {
+                color: var(--warning-color);
+            }
+            .temp-normal {
+                color: var(--success-color);
+            }
+            .temp-elevated {
+                color: #FFB347; /* Subtle orange color for elevated but not anomalous */
+            }
+            .temp-warning {
+                color: var(--warning-color);
+            }
+            .temp-critical {
+                color: var(--danger-color);
+            }
+            .data-footer {
+                font-size: 0.85rem;
+                color: #6c757d;
+                margin-top: 10px;
+                font-style: italic;
             }
         </style>
     </head>
     <body>
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner-container">
+                <div class="spinner-border" role="status"></div>
+                <h5 class="mt-3">Analyzing Motor Data...</h5>
+                <p class="mb-0">This may take a few moments</p>
+            </div>
+        </div>
+
         <div class="container">
             <div class="dashboard-header text-center">
                 <h1>
-                    <i class="bi bi-gear"></i> Electric Motor Anomaly Dashboard
+                    <i class="bi bi-gear-fill me-2"></i> Electric Motor Maintenance Dashboard
                 </h1>
                 <p class="mb-0">
-                    Real-time monitoring and anomaly detection for electric
-                    motor performance
+                    Anomaly Detection & Performance Monitoring for Electric Motors
                 </p>
             </div>
 
             <div class="file-upload-container" id="uploadContainer">
-                <h5>Upload Motor Data for Analysis</h5>
-                <p>Select a CSV file containing motor measurement data</p>
-                <input
-                    type="file"
-                    id="dataFileInput"
-                    class="form-control mb-3"
-                    accept=".csv"
-                />
-                <button id="analyzeButton" class="btn btn-primary">
-                    Analyze Data
-                </button>
-                <div class="mt-2" id="uploadStatus"></div>
+                <div class="row align-items-center">
+                    <div class="col-md-8 text-md-start text-center mb-3 mb-md-0">
+                        <h4 class="mb-2"><i class="bi bi-upload me-2"></i>Upload Motor Data for Analysis</h4>
+                        <p class="text-muted mb-0">Select a CSV file containing motor measurement data for anomaly detection</p>
+                    </div>
+                    <div class="col-md-4">
+                        <input
+                            type="file"
+                            id="dataFileInput"
+                            class="form-control mb-3"
+                            accept=".csv"
+                        />
+                        <button id="analyzeButton" class="btn btn-primary w-100">
+                            <i class="bi bi-search me-2"></i>Analyze Data
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-3" id="uploadStatus"></div>
             </div>
 
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
+            <div class="row mb-4">
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <div class="card h-100">
                         <div class="card-header">
-                            <div
-                                class="d-flex justify-content-between align-items-center"
-                            >
-                                <span>System Status</span>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-speedometer2 me-2"></i>System Status</span>
                                 <div>
-                                    <span
-                                        class="status-indicator"
-                                        id="statusIndicator"
-                                    ></span>
+                                    <span class="status-indicator" id="statusIndicator"></span>
                                     <span id="statusText">Loading...</span>
                                 </div>
                             </div>
@@ -132,25 +263,30 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <h5>Anomaly Detection</h5>
-                                    <p>
-                                        <strong>Total Records:</strong>
-                                        <span id="totalRecords">-</span>
-                                    </p>
-                                    <p>
-                                        <strong>Anomalies:</strong>
-                                        <span id="anomalyCount">-</span>
-                                    </p>
-                                    <p>
-                                        <strong>Percentage:</strong>
-                                        <span id="anomalyPercentage">-</span>%
-                                    </p>
+                                    <h5><i class="bi bi-exclamation-triangle me-2"></i>Anomaly Detection</h5>
+                                    <div class="parameter-card">
+                                        <div class="parameter-name">Total Records</div>
+                                        <div class="parameter-value" id="totalRecords">-</div>
+                                    </div>
+                                    <div class="parameter-card mt-3">
+                                        <div class="parameter-name">Anomalies</div>
+                                        <div class="parameter-value" id="anomalyCount">-</div>
+                                    </div>
+                                    <div class="parameter-card mt-3">
+                                        <div class="parameter-name">Percentage</div>
+                                        <div class="parameter-value" id="anomalyPercentage">-</div>
+                                    </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <h5>Timestamp</h5>
-                                    <p><span id="analysisTimestamp">-</span></p>
-                                    <h5>Last Updated</h5>
-                                    <p><span id="lastUpdated">-</span></p>
+                                    <h5><i class="bi bi-clock-history me-2"></i>Time Information</h5>
+                                    <div class="parameter-card">
+                                        <div class="parameter-name">Analysis Timestamp</div>
+                                        <div class="parameter-value" id="analysisTimestamp">-</div>
+                                    </div>
+                                    <div class="parameter-card mt-3">
+                                        <div class="parameter-name">Last Updated</div>
+                                        <div class="parameter-value" id="lastUpdated">-</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -158,51 +294,97 @@
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card temperature-card">
-                        <div class="card-header">Temperature Analysis</div>
+                    <div class="card temperature-card h-100">
+                        <div class="card-header">
+                            <i class="bi bi-thermometer-half me-2"></i>Temperature Analysis
+                        </div>
                         <div class="card-body">
-                            <div id="temperatureCards"></div>
+                            <div id="temperatureCards" class="row"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">Parameter Anomalies</div>
-                        <div class="card-body">
-                            <div id="parameterAnomalies">
-                                No parameter anomalies detected
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">Sample Anomaly Records</div>
-                        <div class="card-body anomaly-table">
-                            <div id="sampleAnomalies">
-                                No anomalies to display
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mt-4">
+            <div class="row mb-4">
                 <div class="col-12">
                     <div class="card">
-                        <div class="card-header">Parameter Normal Ranges</div>
+                        <div class="card-header">
+                            <i class="bi bi-graph-up me-2"></i>Temperature Trends
+                        </div>
                         <div class="card-body">
-                            <div
-                                id="parameterStats"
-                                class="parameter-grid"
-                            ></div>
+                            <div class="chart-container">
+                                <canvas id="temperatureChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-graph-up-arrow me-2"></i>Anomaly Detection Results
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="anomalyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="bi bi-exclamation-circle me-2"></i>Parameter Anomalies
+                        </div>
+                        <div class="card-body">
+                            <div id="parameterAnomalies">
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-search" style="font-size: 2rem;"></i>
+                                    <p class="mt-2">No parameter anomalies detected</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="bi bi-table me-2"></i>Sample Anomaly Records
+                        </div>
+                        <div class="card-body anomaly-table">
+                            <div id="sampleAnomalies">
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-clipboard-x" style="font-size: 2rem;"></i>
+                                    <p class="mt-2">No anomalies to display</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-rulers me-2"></i>Parameter Normal Ranges
+                        </div>
+                        <div class="card-body">
+                            <div id="parameterStats" class="parameter-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4 data-footer">
+                <p>Maintenance model uses machine learning to detect anomalies in motor performance</p>
+                <p>&copy; Electric Motor Maintenance Dashboard</p>
             </div>
         </div>
 

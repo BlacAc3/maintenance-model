@@ -1,8 +1,7 @@
-import pandas as pd
 import numpy as np
-import joblib
 import json
 import sys
+import os
 from datetime import datetime
 from analyze_motor_data import analyze_motor_data
 
@@ -16,7 +15,10 @@ def main():
         data_path = sys.argv[1]
         print(f"Using provided data file: {data_path}")
     else:
-        print("Using default data file: measures_v2_with_time.csv")
+        print("Using default data file: sample_data/sampled_data_100000.csv")
+
+    # Create results directory if it doesn't exist
+    os.makedirs('results', exist_ok=True)
 
     # Analyze motor data
     print("Analyzing motor data...")
@@ -30,23 +32,23 @@ def main():
     print("\n=== Analysis Results ===")
     print(f"Timestamp: {results['timestamp']}")
     print(f"Total records: {results['anomaly_summary']['total_records']}")
-    print(f"Anomalies detected: {results['anomaly_summary']['anomaly_count']} ({results['anomaly_summary']['anomaly_percentage']:.2f}%)")
+    print(f"Anomalies detected: {results['anomaly_summary']['anomaly_count']} "
+          f"({results['anomaly_summary']['anomaly_percentage']:.2f}%)")
 
     # Temperature analysis
     print("\n=== Temperature Analysis ===")
     for temp, stats in results['temperature_analysis'].items():
-        print(f"{temp}:")
-        print(f"  Average: {stats['mean']:.2f}")
-        print(f"  Range: {stats['min']:.2f} - {stats['max']:.2f}")
-        print(f"  Last reading: {stats['last']:.2f}")
+        print(f"{temp.replace('_', ' ').title()}:")
+        print(f"  Average: {stats['mean']:.2f}°")
+        print(f"  Range: {stats['min']:.2f}° - {stats['max']:.2f}°")
+        print(f"  Last reading: {stats['last']:.2f}°")
         print(f"  Anomalies: {stats['anomalies']}")
 
     # Parameter anomalies
     if results['anomaly_summary']['parameter_anomalies']:
         print("\n=== Parameter Anomalies ===")
         for param, count in results['anomaly_summary']['parameter_anomalies'].items():
-            print(f"{param}: {count} anomalies")
-
+            print(f"{param.replace('_', ' ').title()}: {count} anomalies")
 
     # Create a custom JSON encoder class to handle non-serializable types
     class NumpyEncoder(json.JSONEncoder):
@@ -70,8 +72,8 @@ def main():
         with open(filename, 'w') as f:
             json.dump(results, f, indent=2, cls=NumpyEncoder)
 
-    print(f"\nResults saved ")
-    print("To view results in web interface, open dashboard.html in a browser")
+    print(f"\nResults saved to {latest_file} and {timestamped_file}")
+    print("To view results in web interface, run 'python api.py' and open http://localhost:5000 in a browser")
 
 if __name__ == "__main__":
     main()

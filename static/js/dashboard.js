@@ -5,16 +5,16 @@ let motorData = null;
 
 // Colors for temperature chart
 const colorPalette = [
-  "#FF6384",
-  "#36A2EB",
-  "#FFCE56",
-  "#4BC0C0",
-  "#9966FF",
-  "#FF9F40",
-  "#2ECC71",
-  "#E74C3C",
-  "#3498DB",
-  "#F39C12",
+  "#3772FF", // Primary
+  "#F38375", // Secondary
+  "#3AD29F", // Success
+  "#FCAB64", // Warning
+  "#F45B69", // Danger
+  "#2D3142", // Dark
+  "#90ADC6", // Info
+  "#E9D985", // Yellow
+  "#9C89B8", // Purple
+  "#0A8754", // Green
 ];
 
 // Initialize the dashboard
@@ -31,24 +31,59 @@ document.addEventListener("DOMContentLoaded", function () {
         uploadAndAnalyzeData(fileInput.files[0]);
       } else {
         document.getElementById("uploadStatus").innerHTML =
-          '<div class="alert alert-warning">Please select a file first</div>';
+          '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Please select a file first</div>';
       }
     });
+
+  // Add drag and drop functionality to the upload container
+  const uploadContainer = document.getElementById("uploadContainer");
+  const fileInput = document.getElementById("dataFileInput");
+
+  uploadContainer.addEventListener("dragover", function (e) {
+    e.preventDefault();
+    uploadContainer.style.borderColor = "#3772FF";
+    uploadContainer.style.backgroundColor = "rgba(55, 114, 255, 0.1)";
+  });
+
+  uploadContainer.addEventListener("dragleave", function () {
+    uploadContainer.style.borderColor = "#ccc";
+    uploadContainer.style.backgroundColor = "white";
+  });
+
+  uploadContainer.addEventListener("drop", function (e) {
+    e.preventDefault();
+    uploadContainer.style.borderColor = "#ccc";
+    uploadContainer.style.backgroundColor = "white";
+
+    if (e.dataTransfer.files.length > 0) {
+      fileInput.files = e.dataTransfer.files;
+      const fileName = e.dataTransfer.files[0].name;
+      document.getElementById("uploadStatus").innerHTML =
+        `<div class="alert alert-info"><i class="bi bi-file-earmark-check me-2"></i>File selected: ${fileName}</div>`;
+    }
+  });
 
   // Update last updated time
   updateLastUpdated();
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 60 seconds
   setInterval(function () {
     updateLastUpdated();
-  }, 30000);
+  }, 60000);
+
+  // Allow file input to show filename
+  fileInput.addEventListener("change", function () {
+    if (this.files.length > 0) {
+      const fileName = this.files[0].name;
+      document.getElementById("uploadStatus").innerHTML =
+        `<div class="alert alert-info"><i class="bi bi-file-earmark-check me-2"></i>File selected: ${fileName}</div>`;
+    }
+  });
 });
 
 // Fetch motor data from the latest analysis file
 function fetchMotorData() {
-  // In a real application, you would have an API endpoint
-  // For this demo, we'll use a static JSON file
-  fetch("motor_analysis_latest.json")
+  fetch("/motor_analysis_latest.json")
     .then((response) => {
       if (!response.ok) {
         throw new Error(
@@ -68,11 +103,24 @@ function fetchMotorData() {
     });
 }
 
+// Show loading overlay
+function showLoading() {
+  document.getElementById("loadingOverlay").classList.add("active");
+}
+
+// Hide loading overlay
+function hideLoading() {
+  document.getElementById("loadingOverlay").classList.remove("active");
+}
+
 // Upload and analyze a data file
 function uploadAndAnalyzeData(file) {
   const statusElement = document.getElementById("uploadStatus");
   statusElement.innerHTML =
-    '<div class="alert alert-info">Analyzing data, please wait...</div>';
+    '<div class="alert alert-info"><i class="bi bi-arrow-repeat me-2"></i>Preparing data for analysis...</div>';
+
+  // Show loading overlay
+  showLoading();
 
   // Create FormData object
   const formData = new FormData();
@@ -93,11 +141,13 @@ function uploadAndAnalyzeData(file) {
       motorData = data;
       updateDashboard(data);
       statusElement.innerHTML =
-        '<div class="alert alert-success">Analysis completed successfully</div>';
+        '<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>Analysis completed successfully</div>';
+      hideLoading();
     })
     .catch((error) => {
       console.error("Error analyzing data:", error);
-      statusElement.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+      statusElement.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>Error: ${error.message}</div>`;
+      hideLoading();
     });
 }
 
@@ -128,6 +178,10 @@ function updateDashboard(data) {
   // Update parameter stats
   updateParameterStats(data.column_stats);
 
+  // Update charts
+  updateAnomalyChart(data.plot_data);
+  updateTemperatureChart(data.temperature_series, data.plot_data.time);
+
   // Update timestamp
   document.getElementById("analysisTimestamp").textContent = data.timestamp;
 }
@@ -153,10 +207,12 @@ function updateSystemStatus(data) {
 
 // Update anomaly metrics
 function updateAnomalyMetrics(summary) {
-  document.getElementById("totalRecords").textContent = summary.total_records;
-  document.getElementById("anomalyCount").textContent = summary.anomaly_count;
+  document.getElementById("totalRecords").textContent =
+    summary.total_records.toLocaleString();
+  document.getElementById("anomalyCount").textContent =
+    summary.anomaly_count.toLocaleString();
   document.getElementById("anomalyPercentage").textContent =
-    summary.anomaly_percentage.toFixed(2);
+    summary.anomaly_percentage.toFixed(2) + "%";
 }
 
 // Update temperature analysis cards
@@ -165,47 +221,105 @@ function updateTemperatureAnalysis(tempData) {
   container.innerHTML = "";
 
   if (!tempData || Object.keys(tempData).length === 0) {
-    container.innerHTML = "<p>No temperature data available</p>";
+    container.innerHTML = `<div class="col-12 text-center text-muted py-4">
+                            <i class="bi bi-thermometer" style="font-size: 2rem;"></i>
+                            <p class="mt-2">No temperature data available</p>
+                          </div>`;
     return;
   }
 
-  const row = document.createElement("div");
-  row.className = "row";
+  // We'll use this to determine temperature trend icons
+  const tempTrends = {};
+  if (motorData && motorData.temperature_series) {
+    for (const [sensor, values] of Object.entries(
+      motorData.temperature_series,
+    )) {
+      if (values.length >= 2) {
+        const lastValue = values[values.length - 1];
+        const prevValue = values[values.length - 2];
+
+        if (lastValue > prevValue + 0.2) {
+          tempTrends[sensor] = {
+            trend: "up",
+            icon: "bi-arrow-up-circle-fill",
+            label: "Rising",
+          };
+        } else if (lastValue < prevValue - 0.2) {
+          tempTrends[sensor] = {
+            trend: "down",
+            icon: "bi-arrow-down-circle-fill",
+            label: "Falling",
+          };
+        } else {
+          tempTrends[sensor] = {
+            trend: "stable",
+            icon: "bi-dash-circle-fill",
+            label: "Stable",
+          };
+        }
+      }
+    }
+  }
 
   for (const [sensor, stats] of Object.entries(tempData)) {
     const col = document.createElement("div");
     col.className = "col-md-6 mb-3";
 
-    let statusClass = "text-success";
+    let statusClass = "temp-normal";
+    let statusIcon = "bi-check-circle-fill";
     if (stats.anomalies > 0) {
-      statusClass = stats.anomalies > 5 ? "text-danger" : "text-warning";
+      statusClass = stats.anomalies > 5 ? "temp-critical" : "temp-warning";
+      statusIcon =
+        stats.anomalies > 5
+          ? "bi-exclamation-circle-fill"
+          : "bi-exclamation-triangle-fill";
     }
+
+    // Get trend info if available
+    const trendInfo = tempTrends[sensor] || {
+      trend: "stable",
+      icon: "bi-dash-circle-fill",
+      label: "Stable",
+    };
 
     col.innerHTML = `
             <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">${formatSensorName(sensor)}</h5>
-                    <p class="card-text mb-1">Current: <strong>${stats.last.toFixed(2)}°</strong></p>
-                    <p class="card-text mb-1">Avg: ${stats.mean.toFixed(2)}° | Range: ${stats.min.toFixed(1)}° - ${stats.max.toFixed(1)}°</p>
-                    <p class="card-text ${statusClass}">
-                        <strong>Anomalies: ${stats.anomalies}</strong>
+                    <h5 class="card-title d-flex justify-content-between">
+                        ${formatSensorName(sensor)}
+                    </h5>
+                    <p class="card-text mb-2">
+                        <span class="fw-bold">${stats.last.toFixed(2)}°</span>
+                        <span class="temp-trend-icon trend-${trendInfo.trend}" title="${trendInfo.label}">
+                            <i class="bi ${trendInfo.icon}"></i>
+                        </span>
+                    </p>
+                    <p class="card-text mb-1 text-muted small">
+                        <span title="Average">Avg: ${stats.mean.toFixed(2)}°</span> |
+                        <span title="Range">Range: ${stats.min.toFixed(1)}° - ${stats.max.toFixed(1)}°</span>
+                    </p>
+                    <p class="card-text ${statusClass} mt-2">
+                        <small><strong>${stats.anomalies > 0 ? "Anomalies: " + stats.anomalies : "No anomalies"}</strong></small>
                     </p>
                 </div>
             </div>
         `;
 
-    row.appendChild(col);
+    container.appendChild(col);
   }
-
-  container.appendChild(row);
 }
 
 // Update anomaly chart
 function updateAnomalyChart(plotData) {
-  const ctx = document.getElementById("anomalyChart").getContext("2d");
+  const ctx = document.getElementById("anomalyChart");
+  if (!ctx) return;
 
   if (anomalyChart) {
     anomalyChart.destroy();
+  }
+
+  if (!plotData || !plotData.errors) {
+    return;
   }
 
   // Prepare data for normal vs anomaly points
@@ -234,7 +348,7 @@ function updateAnomalyChart(plotData) {
             x: plotData.time[index],
             y: error,
           })),
-          borderColor: "rgba(54, 162, 235, 0.5)",
+          borderColor: "rgba(55, 114, 255, 0.5)",
           borderWidth: 1,
           pointRadius: 0,
           fill: false,
@@ -245,8 +359,8 @@ function updateAnomalyChart(plotData) {
             x: anomalyIndices[index],
             y: error,
           })),
-          backgroundColor: "rgba(255, 99, 132, 1)",
-          borderColor: "rgba(255, 99, 132, 1)",
+          backgroundColor: "rgba(244, 91, 105, 1)",
+          borderColor: "rgba(244, 91, 105, 1)",
           pointRadius: 3,
           pointHoverRadius: 5,
           showLine: false,
@@ -257,7 +371,7 @@ function updateAnomalyChart(plotData) {
             x: time,
             y: plotData.threshold,
           })),
-          borderColor: "rgba(255, 99, 132, 0.7)",
+          borderColor: "rgba(244, 91, 105, 0.7)",
           borderWidth: 2,
           borderDash: [5, 5],
           pointRadius: 0,
@@ -309,7 +423,8 @@ function updateAnomalyChart(plotData) {
 
 // Update temperature chart
 function updateTemperatureChart(tempSeries, timeData) {
-  const ctx = document.getElementById("temperatureChart").getContext("2d");
+  const ctx = document.getElementById("temperatureChart");
+  if (!ctx) return;
 
   if (temperatureChart) {
     temperatureChart.destroy();
@@ -384,21 +499,28 @@ function updateParameterAnomalies(paramAnomalies) {
   const container = document.getElementById("parameterAnomalies");
 
   if (!paramAnomalies || Object.keys(paramAnomalies).length === 0) {
-    container.innerHTML = "<p>No parameter anomalies detected</p>";
+    container.innerHTML = `<div class="text-center text-muted py-4">
+                              <i class="bi bi-shield-check" style="font-size: 2rem;"></i>
+                              <p class="mt-2">No parameter anomalies detected</p>
+                           </div>`;
     return;
   }
 
   let html =
-    '<div class="table-responsive"><table class="table table-sm table-striped">';
+    '<div class="table-responsive"><table class="table table-sm table-hover">';
   html +=
     "<thead><tr><th>Parameter</th><th>Anomaly Count</th><th>Status</th></tr></thead><tbody>";
 
   for (const [param, count] of Object.entries(paramAnomalies)) {
-    let statusClass = count > 5 ? "bg-danger text-white" : "bg-warning";
+    const severity = count > 5 ? "danger" : "warning";
+    const status = count > 5 ? "Critical" : "Warning";
+    const icon =
+      count > 5 ? "bi-exclamation-circle-fill" : "bi-exclamation-triangle-fill";
+
     html += `<tr>
               <td>${formatSensorName(param)}</td>
               <td>${count}</td>
-              <td><span class="badge ${statusClass}">${count > 5 ? "Critical" : "Warning"}</span></td>
+              <td><span class="badge bg-${severity}"><i class="bi ${icon} me-1"></i>${status}</span></td>
           </tr>`;
   }
 
@@ -411,7 +533,10 @@ function updateSampleAnomalies(samples) {
   const container = document.getElementById("sampleAnomalies");
 
   if (!samples || samples.length === 0) {
-    container.innerHTML = "<p>No anomalies to display</p>";
+    container.innerHTML = `<div class="text-center text-muted py-4">
+                              <i class="bi bi-clipboard-check" style="font-size: 2rem;"></i>
+                              <p class="mt-2">No anomalies to display</p>
+                           </div>`;
     return;
   }
 
@@ -448,7 +573,10 @@ function updateParameterStats(columnStats) {
   const container = document.getElementById("parameterStats");
 
   if (!columnStats || Object.keys(columnStats).length === 0) {
-    container.innerHTML = "<p>No parameter statistics available</p>";
+    container.innerHTML = `<div class="col-12 text-center text-muted py-4">
+                              <i class="bi bi-bar-chart" style="font-size: 2rem;"></i>
+                              <p class="mt-2">No parameter statistics available</p>
+                           </div>`;
     return;
   }
 
@@ -461,12 +589,12 @@ function updateParameterStats(columnStats) {
     card.innerHTML = `
               <div class="parameter-name">${formatSensorName(column)}</div>
               <div class="parameter-value">
-                  <small>Normal Range:</small><br>
-                  ${stats.min_normal.toFixed(2)} - ${stats.max_normal.toFixed(2)}
+                  <div class="mb-1">Normal Range:</div>
+                  <strong>${stats.min_normal.toFixed(2)} - ${stats.max_normal.toFixed(2)}</strong>
               </div>
-              <div class="mt-2">
-                  <small>Mean: ${stats.mean.toFixed(2)}</small><br>
-                  <small>Std Dev: ${stats.std.toFixed(2)}</small>
+              <div class="mt-2 text-muted small">
+                  <div><i class="bi bi-calculator me-1"></i>Mean: ${stats.mean.toFixed(2)}</div>
+                  <div><i class="bi bi-distribute-vertical me-1"></i>Std Dev: ${stats.std.toFixed(2)}</div>
               </div>
           `;
 
@@ -476,7 +604,10 @@ function updateParameterStats(columnStats) {
 
 // Helper to format sensor names for display
 function formatSensorName(name) {
-  return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  return name
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase())
+    .replace("Temperature", "Temp");
 }
 
 // Update the "last updated" time
